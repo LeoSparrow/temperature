@@ -10,10 +10,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.time.LocalDate;
+import java.util.Collection;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Сервис для работы с температурой.
@@ -22,7 +26,7 @@ import java.util.Map;
 @Slf4j
 @RequiredArgsConstructor
 public class TemperatureServiceImpl implements TemperatureService {
-    private final TemperatureRepository repository;
+    private final TemperatureRepository temperatureRepository;
 
     /**
      * запрашивает текущую температуру в городе
@@ -33,7 +37,11 @@ public class TemperatureServiceImpl implements TemperatureService {
      * @return значение температуры
      */
     @Override
-    public Double identifyTemperature(Map.Entry<String, String> location, Map<String, String> source, String serviceName) {
+    public Double identifyTemperature(
+            Map.Entry<String, String> location,
+            Map<String, String> source,
+            String serviceName
+    ) throws HttpClientErrorException {
         RestTemplate restTemplate = new RestTemplate();
         log.debug(
                 "Запрос температуры в городе {} и сервиса {}",
@@ -59,7 +67,90 @@ public class TemperatureServiceImpl implements TemperatureService {
     @Transactional
     @Override
     public void insert(TemperatureEntity entity) {
-        repository.save(entity);
+        log.info(
+                "Сохраняем данные для города {} в бд",
+                entity.getCity()
+        );
+        temperatureRepository.save(entity);
+        log.info(
+                "Успешное сохранение данных для города {} в бд",
+                entity.getCity()
+        );
+    }
+
+    /**
+     * Поиск сохраненных температур по локации и дате
+     *
+     * @param location локация поиска
+     * @param date     дата поиска
+     * @return результат поиска
+     */
+    @Override
+    public String getTemperature(String location, LocalDate date) {
+        if (date == null) return getTemperature(location);
+        log.info(
+                "Запрос поиска температуры для локации {} и даты {}",
+                location,
+                date
+        );
+
+        Collection<TemperatureEntity> entities = temperatureRepository.findAllByTimeCreateBetweenAndCityOrCountry(
+                date.atStartOfDay(),
+                date.plusDays(1).atStartOfDay(),
+                location,
+                location
+        );
+
+        if (entities.isEmpty()) {
+            log.warn(
+                    "Данных по локации {} и дате {} не найдены.",
+                    location,
+                    date
+            );
+            return "Данных по указанной локации и дате не найдены.";
+        } else {
+            log.debug(
+                    "Количество найденных записей для локации {} и даты {} равно {}",
+                    location,
+                    date,
+                    entities.size()
+            );
+            StringBuffer sb = new StringBuffer();
+            entities.forEach(entity -> sb.append(entity.getTemperature()).append(" | ").append(entity.getTimeCreate())
+                    .append("\n"));
+            return sb.toString();
+        }
+    }
+
+    /**
+     * Поиск сохраненных температур по локации
+     *
+     * @param location локация поиска
+     * @return результат поиска
+     */
+    @Override
+    public String getTemperature(String location) {
+        log.info(
+                "Запрос поиска последней сохраненной температуры для локации {}",
+                location
+        );
+        Optional<TemperatureEntity> optional = temperatureRepository
+                .findDistinctFirstByCityOrCountryOrderByTimeCreateDesc(location, location);
+
+        if (optional.isPresent()) {
+            log.debug(
+                    "Найдена запись по локации {}",
+                    location
+            );
+            TemperatureEntity entity = optional.get();
+            return entity.getTemperature() + " | " + entity.getTimeCreate();
+        } else {
+            log.warn(
+                    "Данных по локации {} не найдены.",
+                    location
+            );
+            return "Данных по указанной локации не найдено.";
+        }
     }
 
     /**
@@ -68,7 +159,6 @@ public class TemperatureServiceImpl implements TemperatureService {
      * @param location     город и страна
      * @param source       ключ и урл
      * @param serviceName  имя сервиса
-     * @param restTemplate
      * @return температура
      */
     private Double getTemperature(
@@ -76,27 +166,51 @@ public class TemperatureServiceImpl implements TemperatureService {
             Map<String, String> source,
             String serviceName,
             RestTemplate restTemplate
-    ) {
-        UriComponentsBuilder url = UriComponentsBuilder.fromHttpUrl(source.get("url"));
+    ) throws HttpClientErrorException {
         switch (serviceName) {
             case "openweathermap": {
-                url.queryParam("appid", source.get("key"))
+                String url = UriComponentsBuilder.fromHttpUrl(source.get("url"))
+                        .queryParam("appid", source.get("key"))
                         .queryParam("q", location.getKey())
-                        .queryParam("units", "metric");
-                OpenWeatherMapDto weather = restTemplate.getForObject(url.encode().toUriString(), OpenWeatherMapDto.class);
-                if (weather != null) return weather.getTemperature();
+                        .queryParam("units", "metric")
+                        .encode().toUriString();
+
+                log.debug(
+                        "Сформированный URL для запроса температуры в локации {}: {}",
+                        location,
+                        url
+                );
+                OpenWeatherMapDto dto = restTemplate.getForObject(url, OpenWeatherMapDto.class);
+                if (dto != null) return dto.getTemperature();
             }
             case "weatherapi": {
-                url.queryParam("key", source.get("key"))
-                        .queryParam("q", location.getKey());
-                WeatherApiDto weather = restTemplate.getForObject(url.encode().toUriString(), WeatherApiDto.class);
-                if (weather != null) return weather.getTemperature();
+                String url = UriComponentsBuilder.fromHttpUrl(source.get("url"))
+                        .queryParam("key", source.get("key"))
+                        .queryParam("q", location.getKey())
+                        .encode().toUriString();
+
+                log.debug(
+                        "Сформированный URL для запроса температуры в локации {}: {}",
+                        location,
+                        url
+                );
+                WeatherApiDto dto = restTemplate.getForObject(url, WeatherApiDto.class);
+                if (dto != null) return dto.getTemperature();
             }
             case "weatherbit": {
-                url.queryParam("key", source.get("key"))
-                        .queryParam("city", location.getKey());
-                WeatherBitDto weather = restTemplate.getForObject(url.encode().toUriString(), WeatherBitDto.class);
-                if (weather != null) return weather.getTemperature();
+                String url = UriComponentsBuilder.fromHttpUrl(source.get("url"))
+                        .queryParam("key", source.get("key"))
+                        .queryParam("city", location.getKey())
+                        .encode().toUriString();
+
+                log.debug(
+                        "Сформированный URL для запроса температуры в локации {}: {}",
+                        location,
+                        url
+                );
+
+                WeatherBitDto dto = restTemplate.getForObject(url, WeatherBitDto.class);
+                if (dto != null) return dto.getTemperature();
             }
             default:
                 throw new IllegalStateException("Unexpected value: " + serviceName);

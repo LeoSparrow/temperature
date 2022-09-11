@@ -8,7 +8,8 @@ import java.util.Collection;
 import java.util.Optional;
 
 public interface TemperatureRepository extends JpaRepository<TemperatureEntity, Long> {
-    Collection<TemperatureEntity> findAllByCityAndTimeCreate(String city, LocalDateTime timestamp);
+    Collection<TemperatureEntity> findAllByTimeCreateBetweenAndCityOrCountry
+            (LocalDateTime start, LocalDateTime end, String city, String country);
 
-    Optional<TemperatureEntity> findByCityAndTimeCreate(String City, LocalDateTime timestamp);
+    Optional<TemperatureEntity> findDistinctFirstByCityOrCountryOrderByTimeCreateDesc(String city, String country);
 }

@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -27,21 +28,42 @@ public class EventServiceImpl {
      * Задача запускающаяся по таймеру.
      * Вызывает методы запроса температуры и сохранения их в базу.
      */
-    @Scheduled(fixedDelay = 500000)
+    @Scheduled(fixedDelay = 600000)
     public void updateTemperature() {
-        log.debug("Запуск выполнения задачи для обновления данных по температуре.");
+        log.info("Запуск выполнения задачи для обновления данных по температуре.");
         Map<String, String> locations = properties.getLocations();
         Map<String, Map<String, String>> sources = properties.getSources();
-        double temperature = 0;
+        log.info(
+                "Список город: {}",
+                locations
+        );
 
-        for (var location : locations.entrySet()) {
-            for (var source : sources.entrySet()) {
-                temperature += updateService.identifyTemperature(location, source.getValue(), source.getKey());
+        for (Map.Entry<String, String> location : locations.entrySet()) {
+            double temperature = 0;
+            int successfulCount = sources.size();
+            for (Map.Entry<String, Map<String, String>> source : sources.entrySet()) {
+                try {
+                    temperature += updateService.identifyTemperature(location, source.getValue(), source.getKey());
+                } catch (HttpClientErrorException e) {
+                    successfulCount--;
+                    log.error(
+                            "Ошибка при запросе температуры из сервиса {}",
+                            source.getKey(),
+                            e
+                    );
+                }
             }
 
-            BigDecimal big = new BigDecimal(temperature / locations.size());
+            if (successfulCount == 0) {
+                log.warn(
+                        "Для локации {} не удалось получить информацию ни из одного источника." +
+                                "Запись не будет сохранена в бд",
+                        location
+                );
+            }
+            BigDecimal big = new BigDecimal(temperature / successfulCount);
             double avgTemperature = big.setScale(2, RoundingMode.HALF_EVEN).doubleValue();
-            log.debug(
+            log.info(
                     "Средняя температура для города {} равна {}",
                     location.getKey(),
                     avgTemperature
@@ -56,6 +78,6 @@ public class EventServiceImpl {
             updateService.insert(entity);
         }
 
-        log.debug("Конец выполнение задачи.");
+        log.info("Конец выполнение задачи.");
     }
 }
