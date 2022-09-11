@@ -2,6 +2,7 @@ package com.example.temperature.services.impl;
 
 import com.example.temperature.configuration.WeatherProperties;
 import com.example.temperature.entities.TemperatureEntity;
+import com.example.temperature.exceptions.IncorrectResponseException;
 import com.example.temperature.services.TemperatureService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,13 +23,14 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class EventServiceImpl {
     private final WeatherProperties properties;
-    private final TemperatureService updateService;
+    private final TemperatureService temperatureService;
+
 
     /**
      * Задача запускающаяся по таймеру.
      * Вызывает методы запроса температуры и сохранения их в базу.
      */
-    @Scheduled(fixedDelay = 600000)
+    @Scheduled(cron = "${cron}")
     public void updateTemperature() {
         log.info("Запуск выполнения задачи для обновления данных по температуре.");
         Map<String, String> locations = properties.getLocations();
@@ -43,8 +45,8 @@ public class EventServiceImpl {
             int successfulCount = sources.size();
             for (Map.Entry<String, Map<String, String>> source : sources.entrySet()) {
                 try {
-                    temperature += updateService.identifyTemperature(location, source.getValue(), source.getKey());
-                } catch (HttpClientErrorException e) {
+                    temperature += temperatureService.identifyTemperature(location, source.getValue(), source.getKey());
+                } catch (HttpClientErrorException | IncorrectResponseException e) {
                     successfulCount--;
                     log.error(
                             "Ошибка при запросе температуры из сервиса {}",
@@ -75,7 +77,7 @@ public class EventServiceImpl {
             entity.setTemperature(avgTemperature);
             entity.setTimeCreate(LocalDateTime.now());
 
-            updateService.insert(entity);
+            temperatureService.insert(entity);
         }
 
         log.info("Конец выполнение задачи.");

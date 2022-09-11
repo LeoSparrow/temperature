@@ -11,7 +11,7 @@ spring:
 #logging
 logging:
   level:
-    com.example.temperature.services: DEBUG
+    com.example.temperature.services: INFO
 
 #weathers api
 weather:
@@ -29,3 +29,6 @@ weather:
     Izhevsk: Russia
     London: United Kingdom
     Paris: France
+
+#cron
+cron: 0/5 * * * * *

@@ -4,6 +4,7 @@ import com.example.temperature.dto.OpenWeatherMapDto;
 import com.example.temperature.dto.WeatherApiDto;
 import com.example.temperature.dto.WeatherBitDto;
 import com.example.temperature.entities.TemperatureEntity;
+import com.example.temperature.exceptions.IncorrectResponseException;
 import com.example.temperature.repositories.TemperatureRepository;
 import com.example.temperature.services.TemperatureService;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class TemperatureServiceImpl implements TemperatureService {
     private final TemperatureRepository temperatureRepository;
+    private final RestTemplate restTemplate;
 
     /**
      * запрашивает текущую температуру в городе
@@ -41,14 +43,13 @@ public class TemperatureServiceImpl implements TemperatureService {
             Map.Entry<String, String> location,
             Map<String, String> source,
             String serviceName
-    ) throws HttpClientErrorException {
-        RestTemplate restTemplate = new RestTemplate();
+    ) throws HttpClientErrorException, IncorrectResponseException {
         log.debug(
-                "Запрос температуры в городе {} и сервиса {}",
+                "Запрос температуры в городе {} из сервиса {}",
                 location.getKey(),
                 serviceName
         );
-        Double temperature = getTemperature(location, source, serviceName, restTemplate);
+        Double temperature = requestTemperature(location, source, serviceName);
         log.debug(
                 "Сервис {} вернул температуру {} для города {}",
                 serviceName,
@@ -161,12 +162,11 @@ public class TemperatureServiceImpl implements TemperatureService {
      * @param serviceName  имя сервиса
      * @return температура
      */
-    private Double getTemperature(
+    private Double requestTemperature(
             Map.Entry<String, String> location,
             Map<String, String> source,
-            String serviceName,
-            RestTemplate restTemplate
-    ) throws HttpClientErrorException {
+            String serviceName
+    ) throws HttpClientErrorException, IncorrectResponseException {
         switch (serviceName) {
             case "openweathermap": {
                 String url = UriComponentsBuilder.fromHttpUrl(source.get("url"))
@@ -181,7 +181,16 @@ public class TemperatureServiceImpl implements TemperatureService {
                         url
                 );
                 OpenWeatherMapDto dto = restTemplate.getForObject(url, OpenWeatherMapDto.class);
-                if (dto != null) return dto.getTemperature();
+                if (dto != null) {
+                    return dto.getTemperature();
+                }
+                else {
+                    log.error(
+                            "При запросе к сервису {} был получен не корректный результат.",
+                            serviceName
+                    );
+                    throw new IncorrectResponseException("В ответ на запрос получен не корректный результат.");
+                }
             }
             case "weatherapi": {
                 String url = UriComponentsBuilder.fromHttpUrl(source.get("url"))
@@ -195,7 +204,15 @@ public class TemperatureServiceImpl implements TemperatureService {
                         url
                 );
                 WeatherApiDto dto = restTemplate.getForObject(url, WeatherApiDto.class);
-                if (dto != null) return dto.getTemperature();
+                if (dto != null) {
+                    return dto.getTemperature();
+                } else {
+                    log.error(
+                            "При запросе к сервису {} был получен не корректный результат.",
+                            serviceName
+                    );
+                    throw new IncorrectResponseException("В ответ на запрос получен не корректный результат.");
+                }
             }
             case "weatherbit": {
                 String url = UriComponentsBuilder.fromHttpUrl(source.get("url"))
@@ -210,7 +227,15 @@ public class TemperatureServiceImpl implements TemperatureService {
                 );
 
                 WeatherBitDto dto = restTemplate.getForObject(url, WeatherBitDto.class);
-                if (dto != null) return dto.getTemperature();
+                if (dto != null) {
+                    return dto.getTemperature();
+                } else {
+                    log.error(
+                            "При запросе к сервису {} был получен не корректный результат.",
+                            serviceName
+                    );
+                    throw new IncorrectResponseException("В ответ на запрос получен не корректный результат.");
+                }
             }
             default:
                 throw new IllegalStateException("Unexpected value: " + serviceName);
