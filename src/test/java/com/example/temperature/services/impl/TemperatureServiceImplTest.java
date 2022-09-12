@@ -7,10 +7,8 @@ import com.example.temperature.entities.TemperatureEntity;
 import com.example.temperature.exceptions.IncorrectResponseException;
 import com.example.temperature.repositories.TemperatureRepository;
 import com.example.temperature.services.TemperatureService;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -133,9 +131,8 @@ class TemperatureServiceImplTest {
     }
 
     @Test
-    @Disabled
     void identifyTemperatureShouldBeCorrectResultWithWeatherBit() {
-        String url = "https://api.weatherbit.io/v2.0/current?city=Izhevsk&key=30a30e0e924248d4b200e5fe84b7047f";
+        String url = "https://api.weatherbit.io/v2.0/current?key=30a30e0e924248d4b200e5fe84b7047f&city=Izhevsk";
         Map.Entry<String, String> entry = new AbstractMap.SimpleEntry<>("Izhevsk", "Russia");
         Map<String, String> sources = new HashMap<>();
         sources.put("key", "30a30e0e924248d4b200e5fe84b7047f");
@@ -157,9 +154,8 @@ class TemperatureServiceImplTest {
     }
 
     @Test
-    @Disabled
     void identifyTemperatureShouldBeIncorrectResultWithWeatherBit() {
-        String url = "https://api.weatherbit.io/v2.0/current?city=Izhevsk&key=30a30e0e924248d4b200e5fe84b7047f";
+        String url = "https://api.weatherbit.io/v2.0/current?key=30a30e0e924248d4b200e5fe84b7047f&city=Izhevsk";
         Map.Entry<String, String> entry = new AbstractMap.SimpleEntry<>("Izhevsk", "Russia");
         Map<String, String> sources = new HashMap<>();
         sources.put("key", "30a30e0e924248d4b200e5fe84b7047f");
