@@ -7,3 +7,28 @@ spring:
   liquibase:
     enabled: true
     change-log: classpath:db/changelog/db.changelog-master.xml
+
+#logging
+logging:
+  level:
+    com.example.temperature.services: INFO
+
+#weathers api
+weather:
+  sources:
+    openweathermap:
+      key: 1d7659b294d1085934bf0a736e0d35b3
+      url: https://api.openweathermap.org/data/2.5/weather
+    weatherapi:
+      key: 29d973a0d4f943799c064943221109
+      url: http://api.weatherapi.com/v1/current.json
+    weatherbit:
+      key: 30a30e0e924248d4b200e5fe84b7047f
+      url: https://api.weatherbit.io/v2.0/current
+  locations:
+    Izhevsk: Russia
+    London: United Kingdom
+    Paris: France
+
+#cron
+cron: 0/5 * * * * *

@@ -1,0 +1,24 @@
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+    
+    <changeSet id="1" author="Leonid.Vorobev">
+        <createTable tableName="temperature">
+            <column name="id" autoIncrement="true" type="bigint"
+                    remarks="Идентификатор записи">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="city" type="varchar(50)"
+                    remarks="Город"/>
+            <column name="country" type="varchar(50)"
+                    remarks="Страна"/>
+            <column name="temperature"  type="real"
+                    remarks="Значение средней температуры"/>
+            <column name="time_create" type="timestamp"
+                    remarks="Таймпштамп записи"/>
+        </createTable>
+    </changeSet>
+
+</databaseChangeLog>
